@@ -125,10 +125,13 @@ class GraphicsAPI:
 
 
 if __name__ == "__main__":
-    api = GraphicsAPI(800, 800, "hellow world")
+    api = GraphicsAPI(800, 800, "hello world")
     with api.create_window() as window:
         while True:
             if not api.should_run_then_clear():
                 break
-            time.sleep(0.5)
+            # tell glfw to poll and process window events
+            glfw.poll_events()
+            # swap frame buffer
+            glfw.swap_buffers(window)
     print("Successfully reached end of main")
