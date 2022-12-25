@@ -50,6 +50,25 @@ def window_scroll_callback(window, x_offset, y_offset):
     # TODO: make customizable - allow user to specify it?
     pass
 
+def compile_shader(shader_type, shader_source: str) -> Optional[int]:
+    """compile a shader:
+    Args:
+        shader_type: takes in `GL_VERTEX_SHADER` or `GL_FRAGMENT_SHADER`
+        shader_source: actual shader code
+
+    Returns:
+        shader id if compilation is successful.
+        None if compilation fails - logs to error
+    """
+    shader_id = glCreateShader(shader_type)
+    glShaderSource(shader_id, shader_source)
+    glCompileShader(shader_id)
+    success = glGetShaderiv(shader_id, GL_COMPILE_STATUS)
+    if not success:
+        info_log = glGetShaderInfoLog(shader_id)
+        logger.error(f"Shader compilation failed for {shader_source=} and {info_log=}")
+        return None
+    return shader_id
 
 class GraphicsAPI:
     def __init__(
@@ -73,6 +92,19 @@ class GraphicsAPI:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         return True
 
+    @staticmethod
+    def read_file_to_str(filename: str) -> str:
+        with open(filename, "r") as f:
+            data = f.read()
+        return data
+
+    @contextlib.contextmanager
+    def new_vertex_array(self):
+        vao = glGenVertexArrays(1)
+        glBindVertexArray(vao)
+        yield vao
+        # user code would go here to populate the vao
+        glBindVertexArray(0)
 
     @contextlib.contextmanager
     def create_window(self):
@@ -123,6 +155,37 @@ class GraphicsAPI:
         # terminate glfw
         glfw.terminate()
 
+    def make_program(self, vertex_shader: str, fragment_shader: str) -> Optional[int]:
+        """ Create a gl program with two shaders linked.
+        Args: vertex_shader and fragment_shader - strings containin GLSL
+        Returns: program ID if successful, None otherwise (with logs to error)
+
+        """
+        vertex_shader_id = compile_shader(GL_VERTEX_SHADER, vertex_shader)
+        if vertex_shader_id is None:
+            logger.error('vertex shader compilation failed')
+            return None
+
+        fragment_shader_id = compile_shader(GL_FRAGMENT_SHADER, fragment_shader)
+        if fragment_shader_id is None:
+            logger.error('vertex shader compilation failed')
+            return None
+
+        # link shaders into a program
+        program_id = glCreateProgram()
+        glAttachShader(program_id, vertex_shader_id)
+        glAttachShader(program_id, fragment_shader_id)
+        glLinkProgram(program_id)
+        linkSuccess = glGetProgramiv(program_id, GL_LINK_STATUS)
+        if not linkSuccess:
+            info_log = glGetProgramInfoLog(program_id)
+            logger.error(f"Program Linkage Error: {info_log=}")
+            return None
+
+        # delete shaders for they are not longer useful
+        glDeleteShader(vertex_shader_id)
+        glDeleteShader(fragment_shader_id)
+        return program_id
 
 if __name__ == "__main__":
     api = GraphicsAPI(800, 800, "hello world")
