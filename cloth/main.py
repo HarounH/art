@@ -25,18 +25,23 @@ if __name__ == "__main__":
     # ASSERT: gl is initialized
     with api.create_window() as window:
         # TODO: VBO
-        vertices_vbo = VBO(model.vertices, usage='GL_STATIC_DRAW')
+        vertices_vbo = VBO(model.vertices, usage='GL_DYNAMIC_DRAW')
         vertices_vbo.create_buffers()
+        vertices_ebo = VBO(model.elements, usage='GL_STATIC_DRAW', target='GL_ELEMENT_ARRAY_BUFFER')
+        vertices_ebo.create_buffers()
 
         # create and bind VAO - needed to enable VertexAttrib
         with api.new_vertex_array() as vertices_vao:
             # bind VBO then buffer into GL
             vertices_vbo.bind()
             vertices_vbo.copy_data()
+
+            vertices_ebo.bind()
+            vertices_ebo.copy_data()
+
             # arguments: index, size, type, normalized, stride, pointer
             glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * 4, ctypes.c_void_p(0))
             glEnableVertexAttribArray(0)
-
 
         program = api.make_program(
             vertex_shader=api.read_file_to_str(args.vertex_shader_path),
@@ -52,8 +57,16 @@ if __name__ == "__main__":
             glUseProgram(program)
 
             # draw vertices
+            # TODO: update buffer
+            # vertices_vbo.set_array(new_vertices)
+            # vertices_vbo.bind()
+            # vertices_vbo.copy_data()
+            # vertices_vbo.unbind()
+            # TODO: what happens if we have to change elements?
+
             glBindVertexArray(vertices_vao)
-            glDrawArrays(GL_TRIANGLES, 0, 3)  # TODO: 3 is a property of model.vertices
+            glDrawElements(GL_TRIANGLES, model.elements.size, GL_UNSIGNED_INT, ctypes.c_void_p(0))
+            glBindVertexArray(0)
 
             # tell glfw to poll and process window events
             glfw.poll_events()
