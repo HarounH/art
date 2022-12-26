@@ -2,11 +2,14 @@ from OpenGL.GL import *
 from OpenGL.arrays.vbo import VBO
 import argparse
 from cloth.graphics_api import GraphicsAPI
+from cloth.gl_uniform import GlUniformCollection, GlUniform
 from cloth.basic_cloth import BasicCloth
 import glfw
 import platform
 import ctypes
 import time
+from cloth.timeseries import AbsoluteSine
+import numpy as np
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -50,22 +53,34 @@ if __name__ == "__main__":
         )
         if program is None:
             raise RuntimeError("Program making failed")
+        uniforms = GlUniformCollection([
+            GlUniform(name="color", dtype="vec3f", gl_program=program)
+        ])
+
+        color_triangle = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float32)
+        sine1 = AbsoluteSine(12.0)
+        sine2 = AbsoluteSine(24.0)
+
         tic = time.time()
         while True:
             if not api.should_run_then_clear():
                 break
-
+            t_seconds = time.time() - tic
             # use our own rendering program
             glUseProgram(program)
 
             glBindVertexArray(vertices_vao)
             # draw vertices
-            model.update(time.time() - tic)
+            model.update(t_seconds)
             vertices_vbo.set_array(model.vertices)
             vertices_vbo.bind()
             vertices_vbo.copy_data()
             vertices_vbo.unbind()
-
+            s1_sample = sine1.sample(t_seconds) / 2.0
+            s2_sample = sine2.sample(t_seconds) / 2.0
+            uniforms.update({
+                "color": color_triangle @ np.array([s1_sample, s2_sample, 1 - s1_sample - s2_sample])
+            })
             glDrawElements(GL_TRIANGLES, model.elements.size, GL_UNSIGNED_INT, ctypes.c_void_p(0))
             glBindVertexArray(0)
 

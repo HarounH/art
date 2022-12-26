@@ -1,5 +1,6 @@
 import numpy as np
 import itertools
+from cloth.timeseries import AbsoluteSine
 
 
 class BasicCloth:
@@ -20,7 +21,7 @@ class BasicCloth:
         )
         self.max_scale = max_scale
         self.min_scale = min_scale
-        self.frequency_hertz = frequency_hertz
+        self.timeseries = AbsoluteSine(frequency_hertz)
 
         self.vertices = self.scale(0.0) * self.vertices_unscaled
         self.elements = np.array(
@@ -32,7 +33,7 @@ class BasicCloth:
         )
 
     def scale(self, t_seconds: float) -> float:
-        return self.min_scale + (self.max_scale - self.min_scale) * np.abs(np.sin(2 * np.pi * t_seconds / self.frequency_hertz))
+        return self.min_scale + (self.max_scale - self.min_scale) * self.timeseries.sample(t_seconds)
 
     def update(self, t_seconds: float) -> None:
         # Just update vertices

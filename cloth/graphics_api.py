@@ -4,10 +4,10 @@ import glfw
 import numpy as np
 import logging
 import contextlib
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any
 import platform as pyPlatform
 import time
-
+from dataclasses import dataclass
 
 logger = logging.getLogger()
 pressed_key_array = np.array([False] * 300, np.bool) # what ke
