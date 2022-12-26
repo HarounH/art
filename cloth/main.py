@@ -2,10 +2,11 @@ from OpenGL.GL import *
 from OpenGL.arrays.vbo import VBO
 import argparse
 from cloth.graphics_api import GraphicsAPI
-from cloth.static_cloth import StaticCloth
+from cloth.basic_cloth import BasicCloth
 import glfw
 import platform
 import ctypes
+import time
 
 
 def get_parser() -> argparse.ArgumentParser:
@@ -18,7 +19,7 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
     # TODO: use args
-    model = StaticCloth(step_size=0.5)
+    model = BasicCloth(step_size=0.5)
     api = GraphicsAPI(800, 800, "cloth rendering")
 
     # TODO: shader
@@ -49,6 +50,7 @@ if __name__ == "__main__":
         )
         if program is None:
             raise RuntimeError("Program making failed")
+        tic = time.time()
         while True:
             if not api.should_run_then_clear():
                 break
@@ -56,15 +58,14 @@ if __name__ == "__main__":
             # use our own rendering program
             glUseProgram(program)
 
-            # draw vertices
-            # TODO: update buffer
-            # vertices_vbo.set_array(new_vertices)
-            # vertices_vbo.bind()
-            # vertices_vbo.copy_data()
-            # vertices_vbo.unbind()
-            # TODO: what happens if we have to change elements?
-
             glBindVertexArray(vertices_vao)
+            # draw vertices
+            model.update(time.time() - tic)
+            vertices_vbo.set_array(model.vertices)
+            vertices_vbo.bind()
+            vertices_vbo.copy_data()
+            vertices_vbo.unbind()
+
             glDrawElements(GL_TRIANGLES, model.elements.size, GL_UNSIGNED_INT, ctypes.c_void_p(0))
             glBindVertexArray(0)
 
