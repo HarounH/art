@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass
 
 logger = logging.getLogger()
-pressed_key_array = np.array([False] * 300, np.bool) # what ke
+pressed_key_array = np.array([False] * 600, np.bool) # alt is 342 apparently xD
 
 
 
@@ -136,6 +136,9 @@ class GraphicsAPI:
 
         # enable z-buffer
         glEnable(GL_DEPTH_TEST)
+        # Enable basic blending. TODO: learn and improve
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
         if pyPlatform.system().lower() != 'darwin':
             # enable debug output

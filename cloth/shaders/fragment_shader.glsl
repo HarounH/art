@@ -1,8 +1,10 @@
 #version 330 core
-out vec4 FragColor;
-in float alpha;
-uniform vec3 color;
-void main()
-{
-    FragColor = vec4(color.x, color.y, color.z, alpha);
+in vec2 o_TexPos;
+out vec4 color;
+
+uniform sampler2D textureSample;
+
+void main(){
+    vec4 sampled = texture(textureSample, o_TexPos);
+    color = sampled;
 }
