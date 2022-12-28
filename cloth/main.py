@@ -1,3 +1,4 @@
+""" Meant to be a living rendering pipeline. """
 from OpenGL.GL import *
 from OpenGL.arrays.vbo import VBO
 import argparse
@@ -21,25 +22,27 @@ def get_parser() -> argparse.ArgumentParser:
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
-    # TODO: use args
     model = BasicCloth(step_size=0.5)
     api = GraphicsAPI(800, 800, "cloth rendering")
 
-    # TODO: shader
     # ASSERT: gl is initialized
     with api.create_window() as window:
-        # TODO: VBO
-        vertices_vbo = VBO(model.vertices, usage='GL_DYNAMIC_DRAW')
-        vertices_vbo.create_buffers()
-        vertices_ebo = VBO(model.elements, usage='GL_STATIC_DRAW', target='GL_ELEMENT_ARRAY_BUFFER')
-        vertices_ebo.create_buffers()
+        program = api.make_program(
+            vertex_shader=api.read_file_to_str(args.vertex_shader_path),
+            fragment_shader=api.read_file_to_str(args.fragment_shader_path),
+        )
+        if program is None:
+            raise RuntimeError("Program making failed")
 
         # create and bind VAO - needed to enable VertexAttrib
         with api.new_vertex_array() as vertices_vao:
+            vertices_vbo = VBO(model.vertices, usage='GL_DYNAMIC_DRAW')
+            vertices_vbo.create_buffers()
+            vertices_ebo = VBO(model.elements, usage='GL_STATIC_DRAW', target='GL_ELEMENT_ARRAY_BUFFER')
+            vertices_ebo.create_buffers()
             # bind VBO then buffer into GL
             vertices_vbo.bind()
             vertices_vbo.copy_data()
-
             vertices_ebo.bind()
             vertices_ebo.copy_data()
 
@@ -47,12 +50,6 @@ if __name__ == "__main__":
             glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * 4, ctypes.c_void_p(0))
             glEnableVertexAttribArray(0)
 
-        program = api.make_program(
-            vertex_shader=api.read_file_to_str(args.vertex_shader_path),
-            fragment_shader=api.read_file_to_str(args.fragment_shader_path),
-        )
-        if program is None:
-            raise RuntimeError("Program making failed")
         uniforms = GlUniformCollection([
             GlUniform(name="color", dtype="vec3f", gl_program=program)
         ])
@@ -69,20 +66,19 @@ if __name__ == "__main__":
             # use our own rendering program
             glUseProgram(program)
 
-            glBindVertexArray(vertices_vao)
-            # draw vertices
-            model.update(t_seconds)
-            vertices_vbo.set_array(model.vertices)
-            vertices_vbo.bind()
-            vertices_vbo.copy_data()
-            vertices_vbo.unbind()
-            s1_sample = sine1.sample(t_seconds) / 2.0
-            s2_sample = sine2.sample(t_seconds) / 2.0
-            uniforms.update({
-                "color": color_triangle @ np.array([s1_sample, s2_sample, 1 - s1_sample - s2_sample])
-            })
-            glDrawElements(GL_TRIANGLES, model.elements.size, GL_UNSIGNED_INT, ctypes.c_void_p(0))
-            glBindVertexArray(0)
+            with api.use_vao(vertices_vao) as vao:
+                # draw vertices
+                model.update(t_seconds)
+                vertices_vbo.set_array(model.vertices)
+                vertices_vbo.bind()
+                vertices_vbo.copy_data()
+                vertices_vbo.unbind()
+                s1_sample = sine1.sample(t_seconds) / 2.0
+                s2_sample = sine2.sample(t_seconds) / 2.0
+                uniforms.update({
+                    "color": color_triangle @ np.array([s1_sample, s2_sample, 1 - s1_sample - s2_sample])
+                })
+                glDrawElements(GL_TRIANGLES, model.elements.size, GL_UNSIGNED_INT, ctypes.c_void_p(0))
 
             # tell glfw to poll and process window events
             glfw.poll_events()

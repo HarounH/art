@@ -107,6 +107,14 @@ class GraphicsAPI:
         glBindVertexArray(0)
 
     @contextlib.contextmanager
+    def use_vao(self, vao):
+        glBindVertexArray(vao)
+        yield vao
+        # render stuff
+        glBindVertexArray(0)
+
+
+    @contextlib.contextmanager
     def create_window(self):
 
         # initialize glfw
@@ -116,6 +124,7 @@ class GraphicsAPI:
         glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
         glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
         glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+        logger.info(f"Initialized glfw context using glfw.OPENGL_CORE_PROFILE {glfw.OPENGL_CORE_PROFILE}")
 
         if pyPlatform.system().lower() == 'darwin':
             glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, GL_TRUE)
