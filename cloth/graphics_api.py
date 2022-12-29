@@ -8,9 +8,10 @@ from typing import Optional, Tuple, Dict, Any
 import platform as pyPlatform
 import time
 from dataclasses import dataclass
+from cloth.camera import Camera
+
 
 logger = logging.getLogger()
-pressed_key_array = np.array([False] * 600, np.bool) # alt is 342 apparently xD
 
 
 
@@ -18,37 +19,6 @@ def debug_message_callback(source, msg_type, msg_id, severity, length, raw, user
     # TODO: make customizable
     msg = raw[0:length]
     logger.debug(source, msg_type, msg_id, severity, msg)
-
-
-def window_keypress_callback(window, key, scanCode, action, mods):
-    # TODO: make customizable - allow user to specify it?
-    if key == glfw.KEY_UNKNOWN:
-        return
-
-    if action == glfw.PRESS:
-        logger.debug(f"key press: {key}")
-        if key == glfw.KEY_ESCAPE:
-            # respond escape here
-            glfw.set_window_should_close(window, True)
-        else:
-            pressed_key_array[key] = True
-    elif action == glfw.RELEASE:
-        pressed_key_array[key] = False
-
-
-def window_resize_callback(window, width, height):
-    # TODO: make customizable - allow user to specify it?
-    # TODO: keep track of width, height?
-    glViewport(0, 0, width, height)
-
-
-def window_cursor_callback(window, x_pos, y_pos):
-    # TODO: make customizable - allow user to specify it?
-    pass
-
-def window_scroll_callback(window, x_offset, y_offset):
-    # TODO: make customizable - allow user to specify it?
-    pass
 
 def compile_shader(shader_type, shader_source: str) -> Optional[int]:
     """compile a shader:
@@ -77,11 +47,16 @@ class GraphicsAPI:
         window_width: int,
         name: Optional[str] = None,
         background_colour: Tuple[float, float, float, float] = (0.3, 0.3, 0.3, 1.0),
+        auto_update_camera: bool = True,
     ):
         self.window_height = window_height
         self.window_width = window_width
         self.name = name
         self.background_colour = background_colour
+        self.camera = Camera()
+        self.pressed_key_array = np.array([False] * 600, np.bool) # alt is 342 apparently xD
+        self.cursor_pos_px = None
+        self.auto_update_camera = auto_update_camera
 
     def should_run_then_clear(self) -> bool:
         # WARNING: two purposes
@@ -90,6 +65,10 @@ class GraphicsAPI:
         # set background color
         glClearColor(*(self.background_colour))
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+        if self.auto_update_camera:
+            self.update_camera()
+
         return True
 
     @staticmethod
@@ -113,6 +92,57 @@ class GraphicsAPI:
         # render stuff
         glBindVertexArray(0)
 
+    def update_camera(self):
+        # if self.auto_update_camera then this has already been called within should_run_then_clear
+        # This involves moving the camera at happens at rate of keypress
+        # hence, better to call this once per frame (within user provided loop)
+        pressed_keys = np.where(self.pressed_key_array == True)
+
+        for key in pressed_keys[0]:
+            if key == glfw.KEY_W:
+                self.camera.pos += self.camera.keyboard_velocity * self.camera.front()
+            elif key == glfw.KEY_S:
+                self.camera.pos -= self.camera.keyboard_velocity * self.camera.front()
+            elif key == glfw.KEY_D:
+                self.camera.pos += self.camera.keyboard_velocity * self.camera.right()
+            elif key == glfw.KEY_A:
+                self.camera.pos -= self.camera.keyboard_velocity * self.camera.right()
+            else:
+                pass
+
+    def window_keypress_callback(self, window, key, scanCode, action, mods):
+        # TODO: make customizable - allow user to specify it?
+        if key == glfw.KEY_UNKNOWN:
+            return
+
+        if action == glfw.PRESS:
+            logger.debug(f"key press: {key}")
+            if key == glfw.KEY_ESCAPE:
+                # respond escape here
+                glfw.set_window_should_close(window, True)
+            else:
+                self.pressed_key_array[key] = True
+        elif action == glfw.RELEASE:
+            self.pressed_key_array[key] = False
+
+    def window_cursor_callback(self, window, x_pos, y_pos):
+        # TODO: make customizable - allow user to specify it?
+        x_offset = x_pos - self.cursor_pos_px[0]
+        y_offset = y_pos - self.cursor_pos_px[1]
+        self.camera.pitch = self.camera.pitch - self.camera.mouse_velocity * y_offset
+        self.camera.yaw = self.camera.yaw + self.camera.mouse_velocity * x_offset
+        self.cursor_pos_px = (x_pos, y_pos)
+
+    def window_scroll_callback(self, window, x_offset, y_offset):
+        # TODO: make customizable - allow user to specify it?
+        self.camera.fov = self.camera.fov + self.camera.scroll_velocity * y_offset
+
+    def window_resize_callback(self, window, width, height):
+        # TODO: make customizable - allow user to specify it?
+        # TODO: keep track of width, height?
+        raise NotImplementedError("currently broken?")
+        self.camera.aspect = width / height
+        glViewport(0, 0, width, height)
 
     @contextlib.contextmanager
     def create_window(self):
@@ -146,18 +176,18 @@ class GraphicsAPI:
             glEnable(GL_DEBUG_OUTPUT)
             glDebugMessageCallback(GLDEBUGPROC(debug_message_callback), None)
         # set resizing callback function
-        # glfw.set_framebuffer_size_callback(window, window_resize_callback)
+        # glfw.set_framebuffer_size_callback(self.window, self.window_resize_callback)
 
-        glfw.set_key_callback(self.window, window_keypress_callback)
+        glfw.set_key_callback(self.window, self.window_keypress_callback)
 
         # disable cursor
         glfw.set_input_mode(self.window, glfw.CURSOR, glfw.CURSOR_DISABLED)
 
-        glfw.set_cursor_pos_callback(self.window, window_cursor_callback)
+        glfw.set_cursor_pos_callback(self.window, self.window_cursor_callback)
         # initialize cursor position
-        cursorPos = glfw.get_cursor_pos(self.window)
+        self.cursor_pos_px = glfw.get_cursor_pos(self.window)
 
-        glfw.set_scroll_callback(self.window, window_scroll_callback)
+        glfw.set_scroll_callback(self.window, self.window_scroll_callback)
         _ = glfw.get_time()
 
         yield self.window
