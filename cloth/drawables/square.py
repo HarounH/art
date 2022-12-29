@@ -1,11 +1,15 @@
+from OpenGL.GL import *
+from OpenGL.arrays.vbo import VBO
+
 import numpy as np
 import itertools
 from cloth.timeseries import AbsoluteSine
 from cloth.gl_texture import GlTexture
 from typing import Optional
+from cloth.drawables.base_drawable import BaseDrawable
 
 
-class Square:
+class Square(BaseDrawable):
     def __init__(
         self,
         side: float = 0.1,
@@ -54,3 +58,34 @@ class Square:
                 axis=1,
             )
         self.vertices = self.vertices.flatten()
+
+    def create_buffers(self) -> None:
+        self.vertices_vbo = VBO(self.vertices, usage='GL_DYNAMIC_DRAW')
+        self.vertices_vbo.create_buffers()
+        self.vertices_ebo = VBO(self.elements, usage='GL_STATIC_DRAW', target='GL_ELEMENT_ARRAY_BUFFER')
+        self.vertices_ebo.create_buffers()
+        # bind VBO then buffer into GL
+        self.vertices_vbo.bind()
+        self.vertices_vbo.copy_data()
+        self.vertices_ebo.bind()
+        self.vertices_ebo.copy_data()
+
+        # arguments: index, size, type, normalized, stride, pointer
+        stride = 5 * ctypes.sizeof(ctypes.c_float)
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(0)
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(3 * ctypes.sizeof(ctypes.c_float)))
+        glEnableVertexAttribArray(1)
+
+    def draw(self) -> None:
+        self.vertices_vbo.set_array(self.vertices)
+        self.vertices_vbo.bind()
+        self.vertices_vbo.copy_data()
+        self.vertices_vbo.unbind()
+        # draw vertices
+        glDrawElements(
+            GL_TRIANGLES,
+            self.elements.size,
+            GL_UNSIGNED_INT,
+            ctypes.c_void_p(0),
+        )

@@ -5,7 +5,7 @@ import argparse
 from cloth.graphics_api import GraphicsAPI
 from cloth.gl_uniform import GlUniformCollection, GlUniform
 from cloth.gl_texture import GlTexture
-from cloth.square import Square
+from cloth.drawables.square import Square
 import glfw
 import platform
 import ctypes
@@ -18,6 +18,7 @@ def setup_logger():
     logging.basicConfig(level=logging.NOTSET)
 
 setup_logger()
+
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
@@ -36,6 +37,7 @@ if __name__ == "__main__":
     with api.create_window() as window:
         model = Square(
             side=0.5,
+            # TODO: figure out where to keep texture
             texture=GlTexture.init_from_file(args.texture_path),
         )
         program = api.make_program(
@@ -47,22 +49,7 @@ if __name__ == "__main__":
 
         # create and bind VAO - needed to enable VertexAttrib
         with api.new_vertex_array() as vertices_vao:
-            vertices_vbo = VBO(model.vertices, usage='GL_DYNAMIC_DRAW')
-            vertices_vbo.create_buffers()
-            vertices_ebo = VBO(model.elements, usage='GL_STATIC_DRAW', target='GL_ELEMENT_ARRAY_BUFFER')
-            vertices_ebo.create_buffers()
-            # bind VBO then buffer into GL
-            vertices_vbo.bind()
-            vertices_vbo.copy_data()
-            vertices_ebo.bind()
-            vertices_ebo.copy_data()
-
-            # arguments: index, size, type, normalized, stride, pointer
-            stride = 5 * ctypes.sizeof(ctypes.c_float)
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
-            glEnableVertexAttribArray(0)
-            glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(3 * ctypes.sizeof(ctypes.c_float)))
-            glEnableVertexAttribArray(1)
+            model.create_buffers()
 
         uniforms = GlUniformCollection([
             GlUniform(name="view_matrix", dtype="mat4f", gl_program=program),
@@ -74,26 +61,16 @@ if __name__ == "__main__":
             if not api.should_run_then_clear():
                 break
             t_seconds = time.time() - tic
+            model.update(t_seconds)
             # use our own rendering program
             glUseProgram(program)
+            uniforms.update({
+                "view_matrix": api.camera.view_matrix(), #.transpose().copy(),
+                "projection_matrix": api.camera.projection_matrix(), #.transpose().copy(),
+            })
             with api.use_vao(vertices_vao) as vao:
-                # draw vertices
-                model.update(t_seconds)
-                vertices_vbo.set_array(model.vertices)
-                vertices_vbo.bind()
-                vertices_vbo.copy_data()
-                vertices_vbo.unbind()
-                uniforms.update({
-                    "view_matrix": api.camera.view_matrix(), #.transpose().copy(),
-                    "projection_matrix": api.camera.projection_matrix(), #.transpose().copy(),
-                })
                 with model.texture.activate():
-                    glDrawElements(
-                        GL_TRIANGLES,
-                        model.elements.size,
-                        GL_UNSIGNED_INT,
-                        ctypes.c_void_p(0),
-                    )
+                    model.draw()
 
             # tell glfw to poll and process window events
             glfw.poll_events()
