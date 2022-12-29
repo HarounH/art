@@ -9,9 +9,6 @@ class Square:
     def __init__(
         self,
         side: float = 0.1,
-        min_scale: float = 1.0,
-        max_scale: float = 2.0,
-        frequency_hertz: float = 12.0,
         texture: Optional[GlTexture] = None,
     ):
         self.side = side
@@ -37,10 +34,6 @@ class Square:
                 ],
                 dtype=np.float32,
             )
-        self.max_scale = max_scale
-        self.min_scale = min_scale
-        self.timeseries = AbsoluteSine(frequency_hertz)
-
 
         self.update(0.0)
 
@@ -52,13 +45,9 @@ class Square:
             dtype=np.uint32,
         )
 
-
-    def scale(self, t_seconds: float) -> float:
-        return self.min_scale + (self.max_scale - self.min_scale) * self.timeseries.sample(t_seconds)
-
     def update(self, t_seconds: float) -> None:
         # Just update vertices
-        self.vertices = self.scale(t_seconds) * self.vertices_unscaled
+        self.vertices = self.vertices_unscaled
         if self.texture is not None:
             self.vertices = np.concatenate(
                 (self.vertices, self.texture_coords),

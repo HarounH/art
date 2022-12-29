@@ -30,7 +30,7 @@ def get_parser() -> argparse.ArgumentParser:
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
-    api = GraphicsAPI(800, 800, "cloth rendering")
+    api = GraphicsAPI(800, 800, "cloth rendering", auto_update_camera=True)
 
     # ASSERT: gl is initialized
     with api.create_window() as window:
@@ -64,8 +64,10 @@ if __name__ == "__main__":
             glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(3 * ctypes.sizeof(ctypes.c_float)))
             glEnableVertexAttribArray(1)
 
-        uniforms = GlUniformCollection([])
-
+        uniforms = GlUniformCollection([
+            # GlUniform(name="view_matrix", dtype="mat4f", gl_program=program),
+            # GlUniform(name="projection_matrix", dtype="mat4f", gl_program=program),
+        ])
 
         tic = time.time()
         while True:
@@ -81,9 +83,17 @@ if __name__ == "__main__":
                 vertices_vbo.bind()
                 vertices_vbo.copy_data()
                 vertices_vbo.unbind()
-                uniforms.update({})
+                uniforms.update({
+                    # "view_matrix": api.camera.view_matrix().transpose().copy(),
+                    # "projection_matrix": api.camera.projection_matrix().transpose().copy(),
+                })
                 with model.texture.activate():
-                    glDrawElements(GL_TRIANGLES, model.elements.size, GL_UNSIGNED_INT, ctypes.c_void_p(0))
+                    glDrawElements(
+                        GL_TRIANGLES,
+                        model.elements.size,
+                        GL_UNSIGNED_INT,
+                        ctypes.c_void_p(0),
+                    )
 
             # tell glfw to poll and process window events
             glfw.poll_events()
