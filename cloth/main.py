@@ -4,7 +4,7 @@ from OpenGL.arrays.vbo import VBO
 import argparse
 from cloth.graphics_api import GraphicsAPI
 from cloth.gl_uniform import GlUniformCollection, GlUniform
-from cloth.gl_texture import GlTexture
+from cloth.gl_texture import GlTexture, TextureBounds
 from cloth.drawables.square import Square
 import glfw
 import platform
@@ -25,6 +25,7 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--vertex_shader_path", default="cloth/shaders/vertex_shader_with_mat.glsl", type=str, help="Relative path to file with vertex shader")
     parser.add_argument("--fragment_shader_path", default="cloth/shaders/fragment_shader.glsl", type=str, help="Relative path to file with fragment shader")
     parser.add_argument("--texture_path", default="cloth/rsc/leaves.jpg", type=str, help="Relative path to a textured file")
+
     # TODO: need a way to map parts of texture to different classes?
     return parser
 
@@ -35,10 +36,12 @@ if __name__ == "__main__":
 
     # ASSERT: gl is initialized
     with api.create_window() as window:
+        # TODO: build drawable based on some configuration file.
+        texture = GlTexture.init_from_file(args.texture_path)
+
         model = Square(
             side=0.5,
-            # TODO: figure out where to keep texture
-            texture=GlTexture.init_from_file(args.texture_path),
+            texture_bounds=TextureBounds(),
         )
         program = api.make_program(
             vertex_shader=api.read_file_to_str(args.vertex_shader_path),
@@ -69,7 +72,7 @@ if __name__ == "__main__":
                 "projection_matrix": api.camera.projection_matrix(), #.transpose().copy(),
             })
             with api.use_vao(vertices_vao) as vao:
-                with model.texture.activate():
+                with texture.activate():
                     model.draw()
 
             # tell glfw to poll and process window events

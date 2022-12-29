@@ -5,8 +5,18 @@ import numpy as np
 from typing import Optional
 import contextlib
 import logging
+from dataclasses import dataclass
+
 
 logger = logging.getLogger()
+
+
+@dataclass
+class TextureBounds:
+    bottom: float = 1.0
+    top: float = 0.0
+    left: float = 0.0
+    right: float = 1.0
 
 
 class GlTexture:

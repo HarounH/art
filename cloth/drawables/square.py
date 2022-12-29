@@ -4,7 +4,7 @@ from OpenGL.arrays.vbo import VBO
 import numpy as np
 import itertools
 from cloth.timeseries import AbsoluteSine
-from cloth.gl_texture import GlTexture
+from cloth.gl_texture import TextureBounds
 from typing import Optional
 from cloth.drawables.base_drawable import BaseDrawable
 
@@ -13,10 +13,9 @@ class Square(BaseDrawable):
     def __init__(
         self,
         side: float = 0.1,
-        texture: Optional[GlTexture] = None,
+        texture_bounds: Optional[TextureBounds] = None,
     ):
         self.side = side
-        self.texture = texture
         s = side / 2.0
         # TODO: make it vertices
         self.vertices_unscaled = np.array(
@@ -28,13 +27,14 @@ class Square(BaseDrawable):
             ],
             dtype=np.float32,
         )
-        if texture is not None:
+        self.use_texture = texture_bounds is not None
+        if self.use_texture:
             self.texture_coords = np.array(
                 [
-                    [0.0, 1.0],
-                    [1.0, 1.0],
-                    [0.0, 0.0],
-                    [1.0, 0.0],
+                    [texture_bounds.top, texture_bounds.right],
+                    [texture_bounds.bottom, texture_bounds.right],
+                    [texture_bounds.top, texture_bounds.left],
+                    [texture_bounds.bottom, texture_bounds.left],
                 ],
                 dtype=np.float32,
             )
@@ -52,7 +52,7 @@ class Square(BaseDrawable):
     def update(self, t_seconds: float) -> None:
         # Just update vertices
         self.vertices = self.vertices_unscaled
-        if self.texture is not None:
+        if self.use_texture:
             self.vertices = np.concatenate(
                 (self.vertices, self.texture_coords),
                 axis=1,
