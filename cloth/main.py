@@ -21,7 +21,7 @@ setup_logger()
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--vertex_shader_path", default="cloth/shaders/vertex_shader.glsl", type=str, help="Relative path to file with vertex shader")
+    parser.add_argument("--vertex_shader_path", default="cloth/shaders/vertex_shader_with_mat.glsl", type=str, help="Relative path to file with vertex shader")
     parser.add_argument("--fragment_shader_path", default="cloth/shaders/fragment_shader.glsl", type=str, help="Relative path to file with fragment shader")
     parser.add_argument("--texture_path", default="cloth/rsc/leaves.jpg", type=str, help="Relative path to a textured file")
     # TODO: need a way to map parts of texture to different classes?
@@ -65,8 +65,8 @@ if __name__ == "__main__":
             glEnableVertexAttribArray(1)
 
         uniforms = GlUniformCollection([
-            # GlUniform(name="view_matrix", dtype="mat4f", gl_program=program),
-            # GlUniform(name="projection_matrix", dtype="mat4f", gl_program=program),
+            GlUniform(name="view_matrix", dtype="mat4f", gl_program=program),
+            GlUniform(name="projection_matrix", dtype="mat4f", gl_program=program),
         ])
 
         tic = time.time()
@@ -84,8 +84,8 @@ if __name__ == "__main__":
                 vertices_vbo.copy_data()
                 vertices_vbo.unbind()
                 uniforms.update({
-                    # "view_matrix": api.camera.view_matrix().transpose().copy(),
-                    # "projection_matrix": api.camera.projection_matrix().transpose().copy(),
+                    "view_matrix": api.camera.view_matrix(), #.transpose().copy(),
+                    "projection_matrix": api.camera.projection_matrix(), #.transpose().copy(),
                 })
                 with model.texture.activate():
                     glDrawElements(

@@ -132,7 +132,6 @@ class GraphicsAPI:
         self.camera.pitch = self.camera.pitch - self.camera.mouse_velocity * y_offset
         self.camera.yaw = self.camera.yaw + self.camera.mouse_velocity * x_offset
         self.cursor_pos_px = (x_pos, y_pos)
-        pass
 
     def window_scroll_callback(self, window, x_offset, y_offset):
         # TODO: make customizable - allow user to specify it?
@@ -141,6 +140,7 @@ class GraphicsAPI:
     def window_resize_callback(self, window, width, height):
         # TODO: make customizable - allow user to specify it?
         # TODO: keep track of width, height?
+        raise NotImplementedError("currently broken?")
         self.camera.aspect = width / height
         glViewport(0, 0, width, height)
 
@@ -176,7 +176,7 @@ class GraphicsAPI:
             glEnable(GL_DEBUG_OUTPUT)
             glDebugMessageCallback(GLDEBUGPROC(debug_message_callback), None)
         # set resizing callback function
-        glfw.set_framebuffer_size_callback(self.window, self.window_resize_callback)
+        # glfw.set_framebuffer_size_callback(self.window, self.window_resize_callback)
 
         glfw.set_key_callback(self.window, self.window_keypress_callback)
 
