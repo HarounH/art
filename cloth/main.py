@@ -33,16 +33,16 @@ if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
     api = GraphicsAPI(800, 800, "cloth rendering", auto_update_camera=True)
+    model = Square(
+        side=0.5,
+        texture_bounds=TextureBounds(),
+    )
 
     # ASSERT: gl is initialized
     with api.create_window() as window:
         # TODO: build drawable based on some configuration file.
         texture = GlTexture.init_from_file(args.texture_path)
 
-        model = Square(
-            side=0.5,
-            texture_bounds=TextureBounds(),
-        )
         program = api.make_program(
             vertex_shader=api.read_file_to_str(args.vertex_shader_path),
             fragment_shader=api.read_file_to_str(args.fragment_shader_path),

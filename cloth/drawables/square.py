@@ -7,47 +7,79 @@ from cloth.timeseries import AbsoluteSine
 from cloth.gl_texture import TextureBounds
 from typing import Optional
 from cloth.drawables.base_drawable import BaseDrawable
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Square(BaseDrawable):
     def __init__(
         self,
         side: float = 0.1,
+        n_points_per_side: int = 10,
         texture_bounds: Optional[TextureBounds] = None,
     ):
         self.side = side
         s = side / 2.0
-        # TODO: make it vertices
-        self.vertices_unscaled = np.array(
-            [
-                [-s, -s, 0.0],
-                [s, -s, 0.0],
-                [-s, s, 0.0],
-                [s, s, 0.0],
-            ],
-            dtype=np.float32,
-        )
-        self.use_texture = texture_bounds is not None
-        if self.use_texture:
-            self.texture_coords = np.array(
-                [
-                    [texture_bounds.top, texture_bounds.right],
-                    [texture_bounds.bottom, texture_bounds.right],
-                    [texture_bounds.top, texture_bounds.left],
-                    [texture_bounds.bottom, texture_bounds.left],
-                ],
-                dtype=np.float32,
-            )
 
+        pos = np.linspace(-s, s, n_points_per_side)
+        n_vertices = n_points_per_side * n_points_per_side
+        self.vertices_unscaled = np.zeros((n_vertices, 3), dtype=np.float32)
+        # order of vertices: row major
+        # i, j -> i, j+1 ... -> i, (n_points_per_side - 1) -> i + 1, 0
+        self.vertices_unscaled[:, 0] = np.repeat(pos, n_points_per_side)
+        self.vertices_unscaled[:, 1] = np.tile(pos, n_points_per_side)
+        logger.info(f"created vertices_unscaled with {self.vertices_unscaled.shape=}")
+        if (use_texture := (texture_bounds is not None)):
+            texture_u_pos = np.linspace(texture_bounds.left, texture_bounds.right, n_points_per_side)
+            texture_v_pos = np.linspace(texture_bounds.top, texture_bounds.bottom, n_points_per_side)
+            self.texture_coords = np.zeros((n_vertices, 2), dtype=np.float32)
+            self.texture_coords[:, 0] = np.repeat(texture_u_pos, n_points_per_side)
+            self.texture_coords[:, 1] = np.tile(texture_v_pos, n_points_per_side)
+            logger.info(f"created texture_coords with {self.texture_coords.shape=}")
+        self.use_texture = use_texture
         self.update(0.0)
 
-        self.elements = np.array(
+        # We produce elements in a fun 2-step process:
+
+        # first, construct all possible triangles incident on the grid
+        # vertex (i, j) induces two triangles: ((i, j), (i+1, j), (i, j+1)) and ((i, j), (i-1, j), (i, j-1))
+        # vertex (i, j) = k = n*i + j, induces two triangles: (k, k+n, k+1) and (k, k-n, k-1)
+        # we use element k as (k, k+n, k+1) and element k+1 as (k, k-n, k-1)
+        k_array_repeated = np.repeat(np.array(list(range(0, n_vertices)), dtype=np.int), 2)  # use int to support sub
+        alternating_plus_minus_one = np.array([1 if (k % 2 == 0) else -1 for k in range(0, 2 * n_vertices)], dtype=np.int)
+        alternating_plus_minus_n = alternating_plus_minus_one * n_points_per_side
+        with_invalid_elements = np.stack((k_array_repeated, k_array_repeated + alternating_plus_minus_n , k_array_repeated + alternating_plus_minus_one), axis=-1)
+        # second, filter out triangles outside the grid
+        # unfortunately, we can't filter by `k` because the constrains are in (i, j) space
+        # we construct 2 invalidity filters:
+        # CONDITION 0-edge: forall (i,j) if ij = 0, then second triangle ((i, j), (i-1, j), (i, j-1)) doesnt exist
+        lower_edge_condition = np.array(
             [
-                [0, 1, 2], # bottom left, bottom right, top left
-                [2, 1, 3],  # top left, bottom right, top right
+                (two_k % 2 == 0)  # first triangle is always fine
+                or (  # second triangle is fine if both i and j > 0
+                    (((two_k // 2) % n_points_per_side) != 0)  # j = 0
+                    and (((two_k // 2) // n_points_per_side) != 0)  # i = 0
+                )
+                for two_k in range(2 * n_vertices)
             ],
-            dtype=np.uint32,
+            dtype=bool
         )
+        # forall (i,j) if j = n-1 or i = n-1, then first triangle ((i, j), (i+1, j), (i, j+1)) doesnt exist
+        upper_edge_condition = np.array(
+            [
+                (two_k % 2 == 1)  # second triangle is always fine
+                or (  # first triangle is fine if both i and j < (n - 1)
+                    (((two_k // 2) % n_points_per_side) < (n_points_per_side - 1))  # j = 0
+                    and (((two_k // 2) // n_points_per_side) < (n_points_per_side - 1))  # i = 0
+                )
+                for two_k in range(2 * n_vertices)
+            ],
+            dtype=bool
+        )
+        # apply them filters
+        self.elements = with_invalid_elements[(lower_edge_condition & upper_edge_condition), :].astype(np.uint32)
+        logger.info(f"created elements with {self.elements.shape=}")
 
     def update(self, t_seconds: float) -> None:
         # Just update vertices
