@@ -5,6 +5,7 @@ import argparse
 from cloth.graphics_api import GraphicsAPI
 from cloth.gl_uniform import GlUniformCollection, GlUniform
 from cloth.gl_texture import GlTexture, TextureBounds
+from cloth.light_source import LightSource
 from cloth.drawables.square import Square
 import glfw
 import platform
@@ -25,13 +26,14 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--vertex_shader_path", default="cloth/shaders/vertex_shader_with_mat.glsl", type=str, help="Relative path to file with vertex shader")
     parser.add_argument("--fragment_shader_path", default="cloth/shaders/fragment_shader.glsl", type=str, help="Relative path to file with fragment shader")
     parser.add_argument("--texture_path", default="cloth/rsc/leaves.jpg", type=str, help="Relative path to a textured file")
-
+    parser.add_argument("-l", "--light_coords", type=float, nargs=3, help="Where is the light boio", default=[0.0, 0.0, 3.0])
     # TODO: need a way to map parts of texture to different classes?
     return parser
 
 if __name__ == "__main__":
     parser = get_parser()
     args = parser.parse_args()
+    light_source = LightSource(pos=np.array(args.light_coords, dtype=np.float32))
     api = GraphicsAPI(800, 800, "cloth rendering", auto_update_camera=True)
     model = Square(
         side=0.5,
@@ -57,6 +59,7 @@ if __name__ == "__main__":
         uniforms = GlUniformCollection([
             GlUniform(name="view_matrix", dtype="mat4f", gl_program=program),
             GlUniform(name="projection_matrix", dtype="mat4f", gl_program=program),
+            GlUniform(name="light_source_position", dtype="vec3f", gl_program=program),
         ])
 
         tic = time.time()
@@ -67,9 +70,11 @@ if __name__ == "__main__":
             model.update(t_seconds)
             # use our own rendering program
             glUseProgram(program)
+            # update some uniforms
             uniforms.update({
-                "view_matrix": api.camera.view_matrix(), #.transpose().copy(),
-                "projection_matrix": api.camera.projection_matrix(), #.transpose().copy(),
+                "view_matrix": api.camera.view_matrix(),
+                "projection_matrix": api.camera.projection_matrix(),
+                "light_source_position": light_source.pos,
             })
             with api.use_vao(vertices_vao) as vao:
                 with texture.activate():

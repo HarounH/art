@@ -25,11 +25,16 @@ class Square(BaseDrawable):
         pos = np.linspace(-s, s, n_points_per_side)
         n_vertices = n_points_per_side * n_points_per_side
         self.vertices_unscaled = np.zeros((n_vertices, 3), dtype=np.float32)
+        self.vertex_normals = np.zeros((n_vertices, 3), dtype=np.float32)
         # order of vertices: row major
         # i, j -> i, j+1 ... -> i, (n_points_per_side - 1) -> i + 1, 0
         self.vertices_unscaled[:, 0] = np.repeat(pos, n_points_per_side)
         self.vertices_unscaled[:, 1] = np.tile(pos, n_points_per_side)
+        self.vertex_normals[:, 2] = 1.0  # positive-z direction
+
         logger.info(f"created vertices_unscaled with {self.vertices_unscaled.shape=}")
+        logger.info(f"created normals_unscaled with {self.vertex_normals.shape=}")
+
         if (use_texture := (texture_bounds is not None)):
             texture_u_pos = np.linspace(texture_bounds.left, texture_bounds.right, n_points_per_side)
             texture_v_pos = np.linspace(texture_bounds.top, texture_bounds.bottom, n_points_per_side)
@@ -84,6 +89,8 @@ class Square(BaseDrawable):
     def update(self, t_seconds: float) -> None:
         # Just update vertices
         self.vertices = self.vertices_unscaled
+        # add in normals
+        self.vertices = np.concatenate((self.vertices, self.vertex_normals), axis=1)
         if self.use_texture:
             self.vertices = np.concatenate(
                 (self.vertices, self.texture_coords),
@@ -103,11 +110,15 @@ class Square(BaseDrawable):
         self.vertices_ebo.copy_data()
 
         # arguments: index, size, type, normalized, stride, pointer
-        stride = 5 * ctypes.sizeof(ctypes.c_float)
+        stride = (
+            self.vertices_unscaled.shape[1] + self.vertex_normals.shape[1] + self.texture_coords.shape[1]
+        ) * ctypes.sizeof(ctypes.c_float)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
         glEnableVertexAttribArray(0)
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(3 * ctypes.sizeof(ctypes.c_float)))
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(3 * ctypes.sizeof(ctypes.c_float)))
         glEnableVertexAttribArray(1)
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(6 * ctypes.sizeof(ctypes.c_float)))
+        glEnableVertexAttribArray(2)
 
     def draw(self) -> None:
         self.vertices_vbo.set_array(self.vertices)
