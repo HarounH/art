@@ -7,6 +7,7 @@ from cloth.gl_uniform import GlUniformCollection, GlUniform
 from cloth.gl_texture import GlTexture, TextureBounds
 from cloth.light_source import LightSource
 from cloth.drawables.square import Square
+from cloth.drawables.spring_mass_grid_square import SpringMassGridSquare
 import glfw
 import platform
 import ctypes
@@ -14,6 +15,8 @@ import time
 from cloth.timeseries import AbsoluteSine
 import numpy as np
 import logging
+import json
+
 
 def setup_logger():
     logging.basicConfig(level=logging.NOTSET)
@@ -27,6 +30,8 @@ def get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--fragment_shader_path", default="cloth/shaders/fragment_shader.glsl", type=str, help="Relative path to file with fragment shader")
     parser.add_argument("--texture_path", default="cloth/rsc/leaves.jpg", type=str, help="Relative path to a textured file")
     parser.add_argument("-l", "--light_coords", type=float, nargs=3, help="Where is the light boio", default=[0.0, 0.0, 3.0])
+    parser.add_argument("--drawable", type=str, help="Classname of drawable", default="SpringMassGridSquare")
+    parser.add_argument("--kwargs_json", type=str, help="Kwargs in json format", default=r"{}")
     # TODO: need a way to map parts of texture to different classes?
     return parser
 
@@ -35,9 +40,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
     light_source = LightSource(pos=np.array(args.light_coords, dtype=np.float32))
     api = GraphicsAPI(800, 800, "cloth rendering", auto_update_camera=True)
-    model = Square(
+    model = eval(args.drawable)(  # TODO: make it a registry or an importlib
         side=0.5,
         texture_bounds=TextureBounds(),
+        **(json.loads(args.kwargs_json)),
     )
 
     # ASSERT: gl is initialized

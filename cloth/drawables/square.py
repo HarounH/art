@@ -18,22 +18,25 @@ class Square(BaseDrawable):
         side: float = 0.1,
         n_points_per_side: int = 10,
         texture_bounds: Optional[TextureBounds] = None,
+        static_normals: bool = True,
+        t0: Optional[float] = 0.0,
     ):
         self.side = side
         s = side / 2.0
 
         pos = np.linspace(-s, s, n_points_per_side)
         n_vertices = n_points_per_side * n_points_per_side
-        self.vertices_unscaled = np.zeros((n_vertices, 3), dtype=np.float32)
-        self.vertex_normals = np.zeros((n_vertices, 3), dtype=np.float32)
+        self.vertices = np.zeros((n_vertices, 3), dtype=np.float32)
         # order of vertices: row major
         # i, j -> i, j+1 ... -> i, (n_points_per_side - 1) -> i + 1, 0
-        self.vertices_unscaled[:, 0] = np.repeat(pos, n_points_per_side)
-        self.vertices_unscaled[:, 1] = np.tile(pos, n_points_per_side)
-        self.vertex_normals[:, 2] = 1.0  # positive-z direction
+        self.vertices[:, 0] = np.repeat(pos, n_points_per_side)
+        self.vertices[:, 1] = np.tile(pos, n_points_per_side)
+        logger.info(f"created vertices_unscaled with {self.vertices.shape=}")
 
-        logger.info(f"created vertices_unscaled with {self.vertices_unscaled.shape=}")
-        logger.info(f"created normals_unscaled with {self.vertex_normals.shape=}")
+        if static_normals:
+            self.vertex_normals = np.zeros((n_vertices, 3), dtype=np.float32)
+            self.vertex_normals[:, 2] = 1.0  # positive-z direction
+            logger.info(f"created normals_unscaled with {self.vertex_normals.shape=}")
 
         if (use_texture := (texture_bounds is not None)):
             texture_u_pos = np.linspace(texture_bounds.left, texture_bounds.right, n_points_per_side)
@@ -43,7 +46,6 @@ class Square(BaseDrawable):
             self.texture_coords[:, 1] = np.tile(texture_v_pos, n_points_per_side)
             logger.info(f"created texture_coords with {self.texture_coords.shape=}")
         self.use_texture = use_texture
-        self.update(0.0)
 
         # We produce elements in a fun 2-step process:
 
@@ -85,21 +87,24 @@ class Square(BaseDrawable):
         # apply them filters
         self.elements = with_invalid_elements[(lower_edge_condition & upper_edge_condition), :].astype(np.uint32)
         logger.info(f"created elements with {self.elements.shape=}")
+        if t0 is not None:
+            logger.info(f"Updated {self.__class__} to {t0=}")
+            self.update(t0)
 
     def update(self, t_seconds: float) -> None:
         # Just update vertices
-        self.vertices = self.vertices_unscaled
+        self.vertices_buffer = self.vertices
         # add in normals
-        self.vertices = np.concatenate((self.vertices, self.vertex_normals), axis=1)
+        self.vertices_buffer = np.concatenate((self.vertices_buffer, self.vertex_normals), axis=1)
         if self.use_texture:
-            self.vertices = np.concatenate(
-                (self.vertices, self.texture_coords),
+            self.vertices_buffer = np.concatenate(
+                (self.vertices_buffer, self.texture_coords),
                 axis=1,
             )
-        self.vertices = self.vertices.flatten()
+        self.vertices_buffer = self.vertices_buffer.flatten()
 
     def create_buffers(self) -> None:
-        self.vertices_vbo = VBO(self.vertices, usage='GL_DYNAMIC_DRAW')
+        self.vertices_vbo = VBO(self.vertices_buffer, usage='GL_DYNAMIC_DRAW')
         self.vertices_vbo.create_buffers()
         self.vertices_ebo = VBO(self.elements, usage='GL_STATIC_DRAW', target='GL_ELEMENT_ARRAY_BUFFER')
         self.vertices_ebo.create_buffers()
@@ -111,7 +116,7 @@ class Square(BaseDrawable):
 
         # arguments: index, size, type, normalized, stride, pointer
         stride = (
-            self.vertices_unscaled.shape[1] + self.vertex_normals.shape[1] + self.texture_coords.shape[1]
+            self.vertices.shape[1] + self.vertex_normals.shape[1] + self.texture_coords.shape[1]
         ) * ctypes.sizeof(ctypes.c_float)
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, ctypes.c_void_p(0))
         glEnableVertexAttribArray(0)
@@ -121,7 +126,7 @@ class Square(BaseDrawable):
         glEnableVertexAttribArray(2)
 
     def draw(self) -> None:
-        self.vertices_vbo.set_array(self.vertices)
+        self.vertices_vbo.set_array(self.vertices_buffer)
         self.vertices_vbo.bind()
         self.vertices_vbo.copy_data()
         self.vertices_vbo.unbind()
