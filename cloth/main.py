@@ -68,12 +68,13 @@ if __name__ == "__main__":
             GlUniform(name="light_source_position", dtype="vec3f", gl_program=program),
         ])
 
-        tic = time.time()
+        tic = 0.0 # time.time()
+        delta_t_seconds = 0.01
         while True:
             if not api.should_run_then_clear():
                 break
-            t_seconds = time.time() - tic
-            model.update(t_seconds)
+            tic = tic + delta_t_seconds
+            model.update(tic)
             # use our own rendering program
             glUseProgram(program)
             # update some uniforms

@@ -21,6 +21,7 @@ class Square(BaseDrawable):
         static_normals: bool = True,
         t0: Optional[float] = 0.0,
     ):
+        self.n_points_per_side = n_points_per_side
         self.side = side
         s = side / 2.0
 
@@ -46,13 +47,19 @@ class Square(BaseDrawable):
             self.texture_coords[:, 1] = np.tile(texture_v_pos, n_points_per_side)
             logger.info(f"created texture_coords with {self.texture_coords.shape=}")
         self.use_texture = use_texture
+        self.init_elements()
+        if t0 is not None:
+            logger.info(f"Updated {self.__class__} to {t0=}")
+            self.update(t0)
 
+    def init_elements(self) -> None:
         # We produce elements in a fun 2-step process:
-
         # first, construct all possible triangles incident on the grid
         # vertex (i, j) induces two triangles: ((i, j), (i+1, j), (i, j+1)) and ((i, j), (i-1, j), (i, j-1))
         # vertex (i, j) = k = n*i + j, induces two triangles: (k, k+n, k+1) and (k, k-n, k-1)
         # we use element k as (k, k+n, k+1) and element k+1 as (k, k-n, k-1)
+        n_vertices = self.vertices.shape[0]
+        n_points_per_side = self.n_points_per_side
         k_array_repeated = np.repeat(np.array(list(range(0, n_vertices)), dtype=np.int), 2)  # use int to support sub
         alternating_plus_minus_one = np.array([1 if (k % 2 == 0) else -1 for k in range(0, 2 * n_vertices)], dtype=np.int)
         alternating_plus_minus_n = alternating_plus_minus_one * n_points_per_side
@@ -87,9 +94,6 @@ class Square(BaseDrawable):
         # apply them filters
         self.elements = with_invalid_elements[(lower_edge_condition & upper_edge_condition), :].astype(np.uint32)
         logger.info(f"created elements with {self.elements.shape=}")
-        if t0 is not None:
-            logger.info(f"Updated {self.__class__} to {t0=}")
-            self.update(t0)
 
     def update(self, t_seconds: float) -> None:
         # Just update vertices
