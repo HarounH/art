@@ -30,8 +30,8 @@ class Square(BaseDrawable):
         self.vertices = np.zeros((n_vertices, 3), dtype=np.float32)
         # order of vertices: row major
         # i, j -> i, j+1 ... -> i, (n_points_per_side - 1) -> i + 1, 0
-        self.vertices[:, 0] = np.repeat(pos, n_points_per_side)
-        self.vertices[:, 1] = np.tile(pos, n_points_per_side)
+        self.vertices[:, 0] = np.tile(pos, n_points_per_side)
+        self.vertices[:, 1] = np.repeat(np.flip(pos), n_points_per_side)
         logger.info(f"created vertices_unscaled with {self.vertices.shape=}")
 
         if static_normals:

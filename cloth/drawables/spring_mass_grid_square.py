@@ -20,7 +20,7 @@ class SpringMassGridSquare(Square):
         t0: Optional[float] = 0.0,
         mass: float = 0.1,  # TODO: replace with gsm
         init_spring_length_factor: float = 1.0,
-        uniform_spring_stiffness: float = 8.0,
+        uniform_spring_stiffness: float = 50.0,
     ):
         super().__init__(
             side=side,
@@ -31,10 +31,7 @@ class SpringMassGridSquare(Square):
         )
         self.init_spring_length_factor = init_spring_length_factor
         self.uniform_spring_stiffness = uniform_spring_stiffness
-        self.fixed_vertices = [
-            n_points_per_side - 1,
-            (n_points_per_side**2) - 1,
-        ]
+        self.fixed_vertices = [0, n_points_per_side - 1]
         # Make vertex-to-element array where v2e[i, j] > 0 if vertex i is in element j
         # value of v2e[i, j] is 1 / ( \sum_j v2e[i, j] )
         self.vertex_to_element = np.zeros((self.vertices.shape[0], self.elements.shape[0]), dtype=np.float32)
