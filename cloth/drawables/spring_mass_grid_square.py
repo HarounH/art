@@ -21,6 +21,7 @@ class SpringMassGridSquare(Square):
         mass: float = 0.1,  # TODO: replace with gsm
         init_spring_length_factor: float = 1.0,
         uniform_spring_stiffness: float = 50.0,
+        damping_force_coefficient: float = 0.05,
     ):
         super().__init__(
             side=side,
@@ -31,6 +32,7 @@ class SpringMassGridSquare(Square):
         )
         self.init_spring_length_factor = init_spring_length_factor
         self.uniform_spring_stiffness = uniform_spring_stiffness
+        self.damping_force_coefficient = damping_force_coefficient
         self.fixed_vertices = [0, n_points_per_side - 1]
         # Make vertex-to-element array where v2e[i, j] > 0 if vertex i is in element j
         # value of v2e[i, j] is 1 / ( \sum_j v2e[i, j] )
@@ -135,7 +137,10 @@ class SpringMassGridSquare(Square):
         force = np.zeros_like(self.vertices, dtype=np.float32)  # V, 3
 
         # gravity
-        force[:, 1] = -self.gravity_coefficient * self.mass[:, 0]
+        force[:, 1] -= self.gravity_coefficient * self.mass[:, 0]
+
+        # damping
+        force[:, :] -= self.damping_force_coefficient * self.velocity
 
         # springs
         spring_end_pos_3d = self.vertices[self.spring_end_points]  # S, 2, 3
