@@ -8,6 +8,7 @@ from cloth.gl_texture import GlTexture, TextureBounds
 from cloth.light_source import LightSource
 from cloth.drawables.square import Square
 from cloth.drawables.spring_mass_grid_square import SpringMassGridSquare
+from cloth.force_field.wind_cylinder_field import WindCylinderField
 import glfw
 import platform
 import ctypes
@@ -43,6 +44,12 @@ if __name__ == "__main__":
     model = eval(args.drawable)(  # TODO: make it a registry or an importlib
         side=0.5,
         texture_bounds=TextureBounds(),
+        wind_field=WindCylinderField(
+            origin=np.array([0.25, -0.25, 5.0], dtype=np.float32),
+            direction=np.array([0.0, 0.0, -1.0], dtype=np.float32),
+            radius=0.1,
+            coefficient=0.05,
+        ),
         **(json.loads(args.kwargs_json)),
     )
 

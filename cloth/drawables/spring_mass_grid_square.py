@@ -4,6 +4,7 @@ from cloth.gl_texture import TextureBounds
 import numpy as np
 import logging
 import itertools
+from cloth.force_field.base_field import BaseField
 
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class SpringMassGridSquare(Square):
         init_spring_length_factor: float = 1.0,
         uniform_spring_stiffness: float = 50.0,
         damping_force_coefficient: float = 0.05,
+        wind_field: Optional[BaseField] = None,
     ):
         super().__init__(
             side=side,
@@ -34,6 +36,8 @@ class SpringMassGridSquare(Square):
         self.uniform_spring_stiffness = uniform_spring_stiffness
         self.damping_force_coefficient = damping_force_coefficient
         self.fixed_vertices = [0, n_points_per_side - 1]
+        self.wind_field = wind_field
+
         # Make vertex-to-element array where v2e[i, j] > 0 if vertex i is in element j
         # value of v2e[i, j] is 1 / ( \sum_j v2e[i, j] )
         self.vertex_to_element = np.zeros((self.vertices.shape[0], self.elements.shape[0]), dtype=np.float32)
@@ -158,9 +162,13 @@ class SpringMassGridSquare(Square):
         spring_force = spring_force_magnitude * spring_direction_vector  # S, 3
         force += np.matmul(self.vertex_to_spring, spring_force)  # V, 3
 
+        if self.wind_field is not None:
+            force += self.wind_field.get_force_field(self.vertices)
+
         # clamp top two corners
         for vertex in self.fixed_vertices:
             force[vertex, :] = 0
+
         return force
 
     def update(self, t: float) -> None:

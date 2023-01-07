@@ -2,9 +2,9 @@
 # point p at position x... surface has normal n
 
 import numpy as np
+from .base_field import BaseField
 
-
-class WindCylinderField:
+class WindCylinderField(BaseField):
     """
     The field applies a force f(x) at position x, constant in time.
         f(x) = |F| direction
@@ -23,6 +23,7 @@ class WindCylinderField:
         self.origin = origin
         self.direction = direction
         self.radius = radius
+        self.coefficient = coefficient
 
     def get_force_field(self, query: np.ndarray) -> np.ndarray:
         # query: V, 3 array of points
@@ -34,6 +35,7 @@ class WindCylinderField:
         )
         distance_from_axis = query - intersections  # V, 3
         u = np.linalg.norm(distance_from_axis, axis=1, keepdims=True) / self.radius  # V
+        u = np.clip(u, 0.0, 1.0)
         u = 3 * (1 - u)**2 - 2 * (1 - u)**3
         return self.coefficient * u * self.direction  # V, 3?
 
@@ -50,7 +52,9 @@ if __name__ == "__main__":
             [0.0, 0.5, 0.7],
             [0.0, 0.2, 5.0],
             [0.3, 0.4, 1.0],
+            [1.3, 1.4, 1.0],
         ],
         dtype=np.float32
     )
     force = field.get_force_field(query)
+    print(force)
