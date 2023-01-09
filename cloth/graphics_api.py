@@ -1,3 +1,4 @@
+import os
 from OpenGL.GL import *
 from OpenGL.arrays.vbo import VBO
 import glfw
@@ -9,10 +10,10 @@ import platform as pyPlatform
 import time
 from dataclasses import dataclass
 from cloth.camera import Camera
+from PIL import Image
 
 
 logger = logging.getLogger()
-
 
 
 def debug_message_callback(source, msg_type, msg_id, severity, length, raw, user):
@@ -66,6 +67,7 @@ class GraphicsAPI:
         glClearColor(*(self.background_colour))
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
+        self.frame_index += 1
         if self.auto_update_camera:
             self.update_camera()
 
@@ -144,8 +146,21 @@ class GraphicsAPI:
         self.camera.aspect = width / height
         glViewport(0, 0, width, height)
 
+    def save_frame(self, save_dir: str) -> bool:
+        # Get the width and height of the frame buffer
+        width, height = glGetIntegerv(GL_VIEWPORT)[2:]
+        # Allocate a numpy array to hold the pixel data
+        pixels = np.empty((height, width, 3), dtype=np.uint8)  # RGB
+        # Read the pixel data from the frame buffer
+        glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels)
+        # Flip the pixel data vertically (OpenGL origin is bottom left, numpy origin is top left)
+        pixels = np.flip(pixels, 0)
+        pil_image = Image.fromarray(pixels)  # Convert the frame to a PIL image
+        pil_image.save(os.path.join(save_dir, f"frame_{self.frame_index}.jpg"))  # Save the image to a file
+
     @contextlib.contextmanager
     def create_window(self):
+        self.frame_index: int = 0
 
         # initialize glfw
         glfw.init()
@@ -196,6 +211,8 @@ class GraphicsAPI:
 
         # terminate glfw
         glfw.terminate()
+
+        # TODO: compose video
 
     def make_program(self, vertex_shader: str, fragment_shader: str) -> Optional[int]:
         """ Create a gl program with two shaders linked.

@@ -1,4 +1,5 @@
 """ Meant to be a living rendering pipeline. """
+import os
 from OpenGL.GL import *
 from OpenGL.arrays.vbo import VBO
 import argparse
@@ -27,6 +28,7 @@ setup_logger()
 
 def get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--output_dir", default="cloth/output/", type=str, help="Relative path to folder to renderer will save frames")
     parser.add_argument("--vertex_shader_path", default="cloth/shaders/vertex_shader_with_mat.glsl", type=str, help="Relative path to file with vertex shader")
     parser.add_argument("--fragment_shader_path", default="cloth/shaders/fragment_shader.glsl", type=str, help="Relative path to file with fragment shader")
     parser.add_argument("--texture_path", default="cloth/rsc/leaves.jpg", type=str, help="Relative path to a textured file")
@@ -52,7 +54,7 @@ if __name__ == "__main__":
         ),
         **(json.loads(args.kwargs_json)),
     )
-
+    os.makedirs(args.output_dir, exist_ok=True)
     # ASSERT: gl is initialized
     with api.create_window() as window:
         # TODO: build drawable based on some configuration file.
@@ -98,4 +100,6 @@ if __name__ == "__main__":
             glfw.poll_events()
             # swap frame buffer
             glfw.swap_buffers(window)
+            api.save_frame(save_dir=args.output_dir)
+
     print("Successfully reached end of main")
