@@ -1,3 +1,4 @@
+cbum/data/raw/**/*
 cloth/output/
 ffmpeg/
 pycg_series_source/
